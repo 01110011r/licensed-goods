@@ -1,0 +1,74 @@
+{
+  "today": "2026-11-20",
+  "categories": [
+    { "id": "c1",  "name": "Health",      "parent_id": null },
+    { "id": "c2",  "name": "Medicines",   "parent_id": "c1" },
+    { "id": "c3",  "name": "Painkillers", "parent_id": "c2" },
+    { "id": "c4",  "name": "Vitamins",    "parent_id": "c2" },
+    { "id": "c5",  "name": "Cosmetics",   "parent_id": "c1" },
+    { "id": "c6",  "name": "Food",        "parent_id": null },
+    { "id": "c7",  "name": "Drinks",      "parent_id": "c6" },
+    { "id": "c8",  "name": "Wine",        "parent_id": "c7" },
+    { "id": "c9",  "name": "Juice",       "parent_id": "c7" },
+    { "id": "c10", "name": "Garden",      "parent_id": null },
+    { "id": "c11", "name": "Pesticides",  "parent_id": "c10" },
+    { "id": "c12", "name": "Seeds",       "parent_id": "c10" }
+  ],
+  "groups": [
+    {
+      "id": "MED", "name": "Medicines",
+      "rules": [
+        { "kind": "category", "category_id": "c2" },
+        { "kind": "code", "prefix": "30049" },
+        { "kind": "code", "prefix": "300490", "exclude": true }
+      ]
+    },
+    {
+      "id": "ALC", "name": "Alcohol",
+      "rules": [
+        { "kind": "category", "category_id": "c8" },
+        { "kind": "code", "prefix": "2204" },
+        { "kind": "code", "prefix": "2208" }
+      ]
+    },
+    {
+      "id": "PEST", "name": "Pesticides",
+      "rules": [
+        { "kind": "category", "category_id": "c11" },
+        { "kind": "code", "prefix": "3808" }
+      ]
+    }
+  ],
+  "sellers": [
+    { "id": "s1", "name": "Shifo Apteka" },
+    { "id": "s2", "name": "Vino Market" },
+    { "id": "s3", "name": "Bog' Dunyosi" },
+    { "id": "s4", "name": "Universal Savdo" }
+  ],
+  "products": [
+    { "id": "p1",  "seller_id": "s1", "name": "Paracetamol 500 mg",     "category_id": "c3",  "ikpu": "30049000100000001", "status": "active" },
+    { "id": "p2",  "seller_id": "s1", "name": "Vitamin C 1000",         "category_id": "c4",  "ikpu": "21069000200000002", "status": "active" },
+    { "id": "p3",  "seller_id": "s1", "name": "Hand cream",             "category_id": "c5",  "ikpu": "33049900300000003", "status": "active" },
+    { "id": "p4",  "seller_id": "s1", "name": "Herbal tea (pharmacy)",  "category_id": "c5",  "ikpu": "30049000400000004", "status": "draft" },
+    { "id": "p5",  "seller_id": "s2", "name": "Red wine 0.75 l",        "category_id": "c8",  "ikpu": "22042100500000005", "status": "active" },
+    { "id": "p6",  "seller_id": "s2", "name": "Apple juice 1 l",        "category_id": "c9",  "ikpu": "20097900600000006", "status": "active" },
+    { "id": "p7",  "seller_id": "s2", "name": "Brandy 0.5 l",           "category_id": "c9",  "ikpu": "22082000700000007", "status": "active" },
+    { "id": "p8",  "seller_id": "s3", "name": "Weed killer 1 l",        "category_id": "c11", "ikpu": "38089300800000008", "status": "active" },
+    { "id": "p9",  "seller_id": "s3", "name": "Tomato seeds",           "category_id": "c12", "ikpu": "12099100900000009", "status": "active" },
+    { "id": "p10", "seller_id": "s3", "name": "Insect spray",           "category_id": "c12", "ikpu": "38089100100000010", "status": "archived" },
+    { "id": "p11", "seller_id": "s4", "name": "Ibuprofen gel",          "category_id": "c3",  "ikpu": "30049000110000011", "status": "active" },
+    { "id": "p12", "seller_id": "s4", "name": "Wine vinegar",           "category_id": "c8",  "ikpu": "22090000120000012", "status": "active" },
+    { "id": "p13", "seller_id": "s4", "name": "Mystery box",            "category_id": "c99", "ikpu": "95030000130000013", "status": "active" },
+    { "id": "p14", "seller_id": "s4", "name": "Cough syrup",            "category_id": "c3",  "ikpu": "300490001400",      "status": "active" },
+    { "id": "p15", "seller_id": "s9", "name": "Aspirin",                "category_id": "c3",  "ikpu": "30049000150000015", "status": "active" }
+  ],
+  "licences": [
+    { "id": "l1", "seller_id": "s1", "group_id": "MED",  "number": "MED-2025-0141", "issuer": "Ministry of Health",  "valid_from": "2025-01-10", "valid_to": "2027-01-10", "status": "approved" },
+    { "id": "l2", "seller_id": "s2", "group_id": "ALC",  "number": "ALC-2024-0077", "issuer": "Tax Committee",       "valid_from": "2024-11-25", "valid_to": "2026-11-25", "status": "approved" },
+    { "id": "l3", "seller_id": "s3", "group_id": "PEST", "number": "PST-2023-0012", "issuer": "Ministry of Agriculture", "valid_from": "2023-06-01", "valid_to": "2026-11-01", "status": "approved" },
+    { "id": "l4", "seller_id": "s3", "group_id": "PEST", "number": "PST-2026-0230", "issuer": "Ministry of Agriculture", "valid_from": "2026-11-02", "valid_to": null,         "status": "pending" },
+    { "id": "l5", "seller_id": "s4", "group_id": "MED",  "number": "MED-2026-0999", "issuer": "Ministry of Health",  "valid_from": "2026-12-01", "valid_to": "2026-06-01", "status": "pending" },
+    { "id": "l6", "seller_id": "s4", "group_id": "TOB",  "number": "TOB-2026-0001", "issuer": "Tax Committee",       "valid_from": "2026-01-01", "valid_to": "2027-01-01", "status": "pending" },
+    { "id": "l7", "seller_id": "s4", "group_id": "ALC",  "number": "",              "issuer": "Tax Committee",       "valid_from": "2026-03-01", "valid_to": "2027-03-01", "status": "rejected" }
+  ]
+}
