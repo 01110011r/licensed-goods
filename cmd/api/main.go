@@ -31,6 +31,13 @@ func main() {
 	if err != nil {
 		log.Fatalf("Database connection failed: %v", err)
 	}
+
+	if err := database.Seed(context.Background(), db, "data/data.json"); err != nil {
+		log.Fatalf("Seed failed: %v", err)
+	}
+
+	log.Println("Seed data loaded successfully")
+
 	defer db.Close()
 
 	server := &http.Server{
