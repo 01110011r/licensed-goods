@@ -1,13 +1,13 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
-import { reviewerAccess } from './api'
+import { adminAccess } from './api'
 
-// RequireReviewerToken shows its children only once a reviewer token is held
+// RequireAdminToken shows its children only once a administrator token is held
 // for this tab. Otherwise it asks for the token.
-export default function RequireReviewerToken({ children }: { children: ReactNode }) {
-  const [hasToken, setHasToken] = useState(() => reviewerAccess.get() !== '')
+export default function RequireAdminToken({ children }: { children: ReactNode }) {
+  const [hasToken, setHasToken] = useState(() => adminAccess.get() !== '')
 
   useEffect(() => {
-    return reviewerAccess.subscribe(() => setHasToken(reviewerAccess.get() !== ''))
+    return adminAccess.subscribe(() => setHasToken(adminAccess.get() !== ''))
   }, [])
 
   if (hasToken) {
@@ -26,22 +26,22 @@ function TokenForm() {
 
     const trimmed = token.trim()
     if (trimmed === '') {
-      setError('Enter the reviewer token.')
+      setError('Enter the administrator token.')
       return
     }
 
     setError('')
-    reviewerAccess.set(trimmed)
+    adminAccess.set(trimmed)
   }
 
   return (
     <section className="panel">
-      <h2>Reviewer access required</h2>
-      <p>Enter the reviewer token to continue. It is kept for this browser tab only.</p>
+      <h2>Administrator access required</h2>
+      <p>Enter the administrator token to continue. It is kept for this browser tab only.</p>
 
       <form onSubmit={handleSubmit} className="form-grid">
         <label>
-          <span>Reviewer token</span>
+          <span>Administrator token</span>
           <input
             type="password"
             autoComplete="off"

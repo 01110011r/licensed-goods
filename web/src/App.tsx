@@ -4,7 +4,7 @@ import SellerView from './SellerView'
 import ReviewerView from './ReviewerView'
 import BuyerView from './BuyerView'
 import SettingsView from './SettingsView'
-import RequireReviewerToken from './ReviewerTokenGate'
+import RequireAdminToken from './AdminTokenGate'
 import './App.css'
 
 type View = 'overview' | 'seller' | 'reviewer' | 'buyer' | 'settings'
@@ -31,7 +31,7 @@ function App() {
       try {
         const [productData, reviewData, dateData] = await Promise.all([
           api.products(),
-          // The queue is reviewer-only; without a token the dashboard still loads.
+          // The queue needs the administrator token; without one the dashboard still loads.
           api.reviews().catch(() => []),
           api.getToday(),
         ])
@@ -186,17 +186,19 @@ function App() {
               </section>
             </>
           ) : view === 'seller' ? (
-            <SellerView />
+            <RequireAdminToken>
+              <SellerView />
+            </RequireAdminToken>
           ) : view === 'reviewer' ? (
-            <RequireReviewerToken>
+            <RequireAdminToken>
               <ReviewerView />
-            </RequireReviewerToken>
+            </RequireAdminToken>
           ) : view === 'buyer' ? (
             <BuyerView />
           ) : view === 'settings' ? (
-            <RequireReviewerToken>
+            <RequireAdminToken>
               <SettingsView />
-            </RequireReviewerToken>
+            </RequireAdminToken>
           ) : (
             <div className="placeholder-panel">
               <p className="eyebrow">WORKSPACE</p>

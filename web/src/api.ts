@@ -1,11 +1,11 @@
 const API_BASE = ''
 
-const TOKEN_KEY = 'reviewerToken'
-const ACCESS_EVENT = 'reviewer-access-changed'
+const TOKEN_KEY = 'adminToken'
+const ACCESS_EVENT = 'admin-access-changed'
 
-// The reviewer token is kept in sessionStorage: it lasts for this browser tab
+// The administrator token is kept in sessionStorage: it lasts for this browser tab
 // only and is never written into the bundle.
-export const reviewerAccess = {
+export const adminAccess = {
   get(): string {
     try {
       return sessionStorage.getItem(TOKEN_KEY) ?? ''
@@ -36,15 +36,15 @@ export const reviewerAccess = {
 }
 
 interface RequestOptions extends RequestInit {
-  reviewer?: boolean
+  admin?: boolean
 }
 
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const { reviewer, ...init } = options
+  const { admin, ...init } = options
   const headers = new Headers(init.headers)
 
-  if (reviewer) {
-    const token = reviewerAccess.get()
+  if (admin) {
+    const token = adminAccess.get()
     if (token) {
       headers.set('Authorization', `Bearer ${token}`)
     }
@@ -52,9 +52,9 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
 
   const response = await fetch(`${API_BASE}${path}`, { ...init, headers })
 
-  if (response.status === 401 && reviewer) {
-    reviewerAccess.clear()
-    throw new Error('The reviewer token was rejected. Enter it again.')
+  if (response.status === 401 && admin) {
+    adminAccess.clear()
+    throw new Error('The administrator token was rejected. Enter it again.')
   }
 
   if (!response.ok) {
@@ -98,22 +98,46 @@ export interface ReviewItem {
   affected_products: Product[]
 }
 
+export interface Category {
+  id: string
+  name: string
+  parent_id: string | null
+}
+
+export interface NewProductInput {
+  seller_id: string
+  name: string
+  category_id: string
+  ikpu: string
+  status: 'draft' | 'active' | 'archived'
+}
+
 export const api = {
   products: () => request<Product[]>('/api/products'),
+
+  categories: () => request<Category[]>('/api/categories'),
+
+  createProduct: (input: NewProductInput) =>
+    request<{ id: string }>('/api/products', {
+      method: 'POST',
+      admin: true,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    }),
 
   sellerProducts: (sellerId: string) =>
     request<Product[]>(`/api/sellers/${sellerId}/products`),
 
   catalogue: () => request<Product[]>('/api/catalogue'),
 
-  reviews: () => request<ReviewItem[]>('/api/reviews', { reviewer: true }),
+  reviews: () => request<ReviewItem[]>('/api/reviews', { admin: true }),
 
   getToday: () => request<{ today: string }>('/api/settings/today'),
 
   updateToday: (today: string) =>
     request<{ today: string }>('/api/settings/today', {
       method: 'PUT',
-      reviewer: true,
+      admin: true,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ today }),
     }),
@@ -121,6 +145,7 @@ export const api = {
   submitLicence: (formData: FormData) =>
     request<{ id: string; status: string }>('/api/licences', {
       method: 'POST',
+      admin: true,
       body: formData,
     }),
 
@@ -131,7 +156,7 @@ export const api = {
   ) =>
     request<{ id: string; status: string }>(`/api/reviews/${id}`, {
       method: 'PATCH',
-      reviewer: true,
+      admin: true,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         status,

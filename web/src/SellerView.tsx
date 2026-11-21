@@ -1,6 +1,6 @@
 
 import { useEffect, useState, type FormEvent } from 'react'
-import { api, type Product } from './api'
+import { api, type Category, type Product } from './api'
 
 const sellers = [
   { id: 's1', name: 'Shifo Apteka' },
@@ -22,6 +22,18 @@ export default function SellerView() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [categories, setCategories] = useState<Category[]>([])
+  const [productSubmitting, setProductSubmitting] = useState(false)
+  const [productMessage, setProductMessage] = useState('')
+  const [productError, setProductError] = useState('')
+
+  useEffect(() => {
+    api.categories()
+      .then(setCategories)
+      .catch((err: unknown) => {
+        setProductError(err instanceof Error ? err.message : 'Failed to load categories')
+      })
+  }, [])
 
   useEffect(() => {
     let cancelled = false
@@ -60,6 +72,46 @@ export default function SellerView() {
       setError(err instanceof Error ? err.message : 'Failed to load products')
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function handleProductSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setProductError('')
+    setProductMessage('')
+
+    const form = event.currentTarget
+    const data = new FormData(form)
+    const name = String(data.get('name') ?? '').trim()
+    const categoryId = String(data.get('category_id') ?? '')
+    const ikpu = String(data.get('ikpu') ?? '').trim()
+    const status = String(data.get('status') ?? 'draft') as 'draft' | 'active' | 'archived'
+
+    if (name === '') {
+      setProductError('Enter a product name.')
+      return
+    }
+    if (!/^\d{17}$/.test(ikpu)) {
+      setProductError('IKPU must be exactly 17 digits.')
+      return
+    }
+
+    setProductSubmitting(true)
+    try {
+      const result = await api.createProduct({
+        seller_id: sellerId,
+        name,
+        category_id: categoryId,
+        ikpu,
+        status,
+      })
+      setProductMessage(`Product added. ID: ${result.id}`)
+      form.reset()
+      await loadProducts()
+    } catch (err) {
+      setProductError(err instanceof Error ? err.message : 'Failed to add product')
+    } finally {
+      setProductSubmitting(false)
     }
   }
 
@@ -169,6 +221,62 @@ export default function SellerView() {
         )}
       </section>
 
+      <section className="panel product-form-panel">
+        <div className="panel-heading">
+          <div>
+            <h2>Add a product</h2>
+            <p>New products are checked against licence rules as soon as they are saved.</p>
+          </div>
+        </div>
+
+        <form className="licence-form" onSubmit={handleProductSubmit}>
+          <label>
+            Product name
+            <input name="name" required maxLength={200} placeholder="e.g. Test vodka 40%" />
+          </label>
+
+          <label>
+            Category
+            <select name="category_id" required defaultValue="">
+              <option value="" disabled>Select category</option>
+              {categories.map((category) => (
+                <option key={category.id} value={category.id}>
+                  {category.name} ({category.id})
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label>
+            IKPU (17 digits)
+            <input
+              name="ikpu"
+              required
+              inputMode="numeric"
+              pattern="\d{17}"
+              title="Exactly 17 digits"
+              placeholder="e.g. 22042100999999999"
+            />
+          </label>
+
+          <label>
+            Status
+            <select name="status" defaultValue="draft">
+              <option value="draft">Draft</option>
+              <option value="active">Active</option>
+              <option value="archived">Archived</option>
+            </select>
+          </label>
+
+          <button className="primary-button" type="submit" disabled={productSubmitting}>
+            {productSubmitting ? 'Adding...' : 'Add product'}
+          </button>
+
+          {productMessage && <p className="success-message">{productMessage}</p>}
+          {productError && <p className="error-message">{productError}</p>}
+        </form>
+      </section>
+
       <section className="panel licence-form-panel">
         <div className="panel-heading">
           <div>
@@ -215,7 +323,7 @@ export default function SellerView() {
 
           <label>
             Supporting document (PDF, PNG or JPG)
-            <input name="file" type="file" accept=".pdf,.png,.jpg,.jpeg" />
+            <input name="file" type="file" accept=".pdf,.png,.jpg,.jpeg" required />
           </label>
 
           <button className="primary-button" type="submit" disabled={submitting}>
