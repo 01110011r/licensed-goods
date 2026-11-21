@@ -21,6 +21,10 @@ func main() {
 		log.Fatal("DATABASE_URL is required")
 	}
 
+	if cfg.ReviewerToken == "" {
+		log.Fatal("REVIEWER_TOKEN is required to protect reviewer endpoints")
+	}
+
 	ctx, cancel := context.WithTimeout(
 		context.Background(),
 		5*time.Second,
@@ -42,7 +46,7 @@ func main() {
 
 	server := &http.Server{
 		Addr:         ":" + cfg.Port,
-		Handler:      httpapi.New(db, cfg.UploadDir).Handler(),
+		Handler:      httpapi.New(db, cfg.UploadDir, cfg.ReviewerToken).Handler(),
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,
 		IdleTimeout:  60 * time.Second,
