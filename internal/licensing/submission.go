@@ -27,7 +27,9 @@ type LicenceSubmission struct {
 	Issuer    string
 	ValidFrom string
 	ValidTo   string
-	FilePath  string
+	// FilePath is set by the server after an upload is saved. It is never
+	// read from client input.
+	FilePath string `json:"-"`
 }
 
 func validateLicenceSubmission(
@@ -42,7 +44,8 @@ func validateLicenceSubmission(
 		input.GroupID == "" ||
 		input.Number == "" ||
 		input.Issuer == "" ||
-		input.ValidFrom == "" {
+		input.ValidFrom == "" ||
+		input.FilePath == "" {
 		return input, time.Time{}, nil, ErrInvalidSubmission
 	}
 

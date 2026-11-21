@@ -54,13 +54,9 @@ func (s *Server) submitLicence(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Invalid uploaded file", http.StatusBadRequest)
 			return
 		}
-	} else if strings.HasPrefix(contentType, "application/json") {
-		if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-			http.Error(w, "Invalid JSON body", http.StatusBadRequest)
-			return
-		}
 	} else {
-		http.Error(w, "Content-Type must be application/json or multipart/form-data", http.StatusUnsupportedMediaType)
+		// Licences must include a file, so only multipart uploads are accepted.
+		http.Error(w, "Content-Type must be multipart/form-data", http.StatusUnsupportedMediaType)
 		return
 	}
 

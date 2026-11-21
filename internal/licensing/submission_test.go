@@ -21,6 +21,7 @@ func TestValidateLicenceSubmission(t *testing.T) {
 				Issuer:    "Ministry",
 				ValidFrom: "2026-11-21",
 				ValidTo:   "2027-11-21",
+				FilePath:  "uploads/a.pdf",
 			},
 		},
 		{
@@ -31,7 +32,17 @@ func TestValidateLicenceSubmission(t *testing.T) {
 				Number:    " MED-2026-001 ",
 				Issuer:    " Ministry ",
 				ValidFrom: "2026-11-21",
+				FilePath:  "uploads/a.pdf",
 			},
+		},
+		{
+			name: "missing file",
+			input: LicenceSubmission{
+				SellerID: "s1", GroupID: "MED",
+				Number: "N1", Issuer: "Ministry",
+				ValidFrom: "2026-11-21",
+			},
+			wantErr: true,
 		},
 		{
 			name: "missing seller",
@@ -109,6 +120,7 @@ func TestValidateLicenceSubmission(t *testing.T) {
 				Number: "N1", Issuer: "Ministry",
 				ValidFrom: "2026-11-21",
 				ValidTo:   "2026-11-21",
+				FilePath:  "uploads/a.pdf",
 			},
 		},
 	}
