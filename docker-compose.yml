@@ -1,0 +1,145 @@
+# Full local stack:
+#   db / db-test         PostgreSQL for the app and for the integration tests
+#   migrate / migrate-test  apply migrations/*.sql once each database is up
+#   api                  the Go API on API_PORT (default 8080)
+#   web                  the Vite dev server on WEB_PORT (default 5173)
+#   test-go / test-web   run only with `--profile test` (scripts/run-all.sh does this)
+#
+# Use scripts/run-all.sh rather than calling compose directly: it sets the
+# reviewer token and runs the tests before starting the app.
+
+name: licensed-goods
+
+x-postgres-env: &postgres-env
+  POSTGRES_USER: postgres
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+
+x-migrate: &migrate
+  image: postgres:16-alpine
+  restart: "no"
+  volumes:
+    - ./migrations:/migrations:ro
+  entrypoint: ["/bin/sh", "-ec"]
+  command:
+    - |
+      for file in /migrations/*.sql; do
+        echo "applying $$file"
+        psql -v ON_ERROR_STOP=1 -q -f "$$file"
+      done
+      echo "migrations applied"
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      <<: *postgres-env
+      POSTGRES_DB: licensed_goods
+    ports:
+      - "${DB_PORT:-5433}:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d licensed_goods"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  db-test:
+    image: postgres:16-alpine
+    environment:
+      <<: *postgres-env
+      POSTGRES_DB: licensed_goods_test
+    ports:
+      - "${TEST_DB_PORT:-5434}:5432"
+    # Test data is disposable: a tmpfs gives every run a clean database.
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d licensed_goods_test"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  migrate:
+    <<: *migrate
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGHOST: db
+      PGUSER: postgres
+      PGPASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      PGDATABASE: licensed_goods
+
+  migrate-test:
+    <<: *migrate
+    depends_on:
+      db-test:
+        condition: service_healthy
+    environment:
+      PGHOST: db-test
+      PGUSER: postgres
+      PGPASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      PGDATABASE: licensed_goods_test
+
+  api:
+    build: .
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      APP_PORT: "8080"
+      DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD:-postgres}@db:5432/licensed_goods?sslmode=disable
+      UPLOAD_DIR: /app/uploads
+      REVIEWER_TOKEN: ${REVIEWER_TOKEN:?REVIEWER_TOKEN must be set (scripts/run-all.sh sets it)}
+    ports:
+      - "${API_PORT:-8080}:8080"
+    volumes:
+      - uploads:/app/uploads
+    restart: unless-stopped
+
+  web:
+    build: ./web
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      API_PROXY_TARGET: http://api:8080
+    ports:
+      - "${WEB_PORT:-5173}:5173"
+    volumes:
+      - ./web:/app
+      - web-node-modules:/app/node_modules
+    restart: unless-stopped
+
+  test-go:
+    image: golang:1.27.4-alpine
+    profiles: ["test"]
+    depends_on:
+      migrate-test:
+        condition: service_completed_successfully
+    working_dir: /src
+    environment:
+      CGO_ENABLED: "0"
+      GOCACHE: /root/.cache/go-build
+      TEST_DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD:-postgres}@db-test:5432/licensed_goods_test?sslmode=disable
+    volumes:
+      - ./:/src
+      - go-mod-cache:/go/pkg/mod
+      - go-build-cache:/root/.cache/go-build
+    command: ["sh", "-ec", "go vet ./... && go test -count=1 ./..."]
+
+  test-web:
+    # Uses the image's own copy of the source (no bind mount), so the build
+    # output never lands in the host tree or gets root-owned files there.
+    build: ./web
+    profiles: ["test"]
+    working_dir: /app
+    command: ["sh", "-ec", "bun run lint && bun run build"]
+
+volumes:
+  db-data:
+  uploads:
+  go-mod-cache:
+  go-build-cache:
+  web-node-modules:
