@@ -7,9 +7,9 @@ The Licensed Goods Marketplace manages products that require specific licences b
 The system supports four main workflows:
 
 - **Seller:** manages products and submits licence applications.
-- **Reviewer:** reviews pending licence applications and approves or rejects them. Reviewer access requires the reviewer token (see Access control below).
+- **Reviewer:** reviews pending licence applications and approves or rejects them. Reviewer actions require the administrator token (see Access control below).
 - **Buyer:** browses products that are eligible for sale.
-- **Administrator:** controls the global business date (`Today`) used for licence validity calculations. In the current system this is a reviewer action and also requires the reviewer token.
+- **Administrator:** controls the global business date (`Today`) used for licence validity calculations. It requires the administrator token.
 
 The central business rule is:
 
@@ -344,7 +344,7 @@ This ensures the rule is enforced even if multiple requests arrive concurrently.
 
 ### Review queue
 
-Viewing the reviewer queue requires the reviewer token (see Access control below).
+Viewing the reviewer queue requires the administrator token (see Access control below).
 
 The reviewer queue:
 
@@ -417,7 +417,7 @@ app_settings
 
 ```mermaid
 flowchart TD
-    Admin[Administrator Changes Today] --> Request[PUT /api/settings/today with reviewer token]
+    Admin[Administrator Changes Today] --> Request[PUT /api/settings/today with administrator token]
     Request --> Auth{Token valid?}
     Auth -->|No| Refuse[401 Unauthorized]
     Auth -->|Yes| Validate[Validate YYYY-MM-DD]
@@ -445,13 +445,15 @@ This also makes it possible to test expiration scenarios without waiting for the
 | GET | `/api/products` | Public | List products with licence requirements and hold information |
 | GET | `/api/sellers/{sellerID}/products` | Public | List products belonging to a seller |
 | GET | `/api/catalogue` | Public | List buyer-visible products |
-| POST | `/api/licences` | Public | Submit a licence application (multipart, with file) |
-| GET | `/api/reviews` | Reviewer token | Get pending licence applications |
-| PATCH | `/api/reviews/{id}` | Reviewer token | Approve or reject an application |
+| GET | `/api/categories` | Public | List product categories |
+| POST | `/api/products` | Administrator token | Add a product |
+| POST | `/api/licences` | Administrator token | Submit a licence application (multipart, with file) |
+| GET | `/api/reviews` | Administrator token | Get pending licence applications |
+| PATCH | `/api/reviews/{id}` | Administrator token | Approve or reject an application |
 | GET | `/api/settings/today` | Public | Get the current business date |
-| PUT | `/api/settings/today` | Reviewer token | Update the business date |
+| PUT | `/api/settings/today` | Administrator token | Update the business date |
 
-Reviewer-token routes take `Authorization: Bearer <REVIEWER_TOKEN>`. Without a valid token they return `401 Unauthorized`. If the server has no `REVIEWER_TOKEN` configured, these routes return `403 Forbidden` for every request.
+Administrator-token routes take `Authorization: Bearer <ADMIN_TOKEN>`. Without a valid token they return `401 Unauthorized`. If the server has no `ADMIN_TOKEN` configured, these routes return `403 Forbidden` for every request.
 
 The backend validates incoming data independently of frontend validation. This means API requests made directly through `curl` are subject to the same business rules.
 
@@ -459,8 +461,8 @@ The backend validates incoming data independently of frontend validation. This m
 
 The system has no user accounts. Access is controlled in two ways:
 
-- **Public:** sellers and buyers use the application without signing in. Anyone who can reach the API can submit a licence application or read the catalogue.
-- **Reviewer token:** a single shared secret, `REVIEWER_TOKEN`, protects the review queue, review decisions and the Today setting. The server refuses to start without it. The web app asks for the token when a reviewer or settings page is opened, keeps it in `sessionStorage` for that browser tab only, and clears it if the server rejects it.
+- **Public:** anyone who can reach the API can read products, the catalogue, categories and the Today date.
+- **Administrator token:** a single shared secret, `ADMIN_TOKEN`, protects every write (adding products, submitting licence applications, approving or rejecting them, and changing the Today date) and the review queue. The server refuses to start without it. The web app asks for the token when a seller, reviewer or settings page is opened, keeps it in `sessionStorage` for that browser tab only, and clears it if the server rejects it.
 
 This is a deliberate simplification for the assessment scope. It does not identify individual reviewers, so the database records each decision and its outcome but not who made it. Per-user accounts would replace the shared token.
 
@@ -536,8 +538,8 @@ Tests cover:
 
 Tests cover:
 
-- Reviewer token checks: missing, wrong, malformed and correct tokens, and fail-closed behaviour when no token is configured.
-- Every reviewer route refuses requests without a token.
+- Administrator token checks: missing, wrong, malformed and correct tokens, and fail-closed behaviour when no token is configured.
+- Every administrator route refuses requests without a token.
 - Licence upload rules: JSON is refused, a missing file is refused, a file whose content does not match its extension is refused, and an unsupported extension is refused.
 
 These tests do not need a database.
@@ -596,8 +598,10 @@ Run only the PostgreSQL integration tests locally. Use a test database, not the 
 
 ```bash
 TEST_DATABASE_URL=postgres://postgres:password@localhost:5432/licensed_goods_test?sslmode=disable \
-  go test ./internal/review/ -run Integration -v
+  go test -p 1 ./...
 ```
+
+Use `-p 1` so that packages sharing the test database run one at a time.
 
 Run backend static analysis:
 
@@ -691,7 +695,7 @@ A clear presentation can follow this sequence:
 | `internal/licensing/submission.go` | Submission validation and pending application creation |
 | `internal/review/decision.go` | Approval/rejection rules and transaction safety |
 | `internal/settings/today.go` | Global business date validation and persistence |
-| `internal/httpapi/auth.go` | Reviewer token check (fails closed when no token is configured) |
+| `internal/httpapi/auth.go` | Administrator token check (fails closed when no token is configured) |
 | `internal/httpapi/licences.go` | Multipart upload handling and file content checks |
 | `docker-compose.yml`, `scripts/run-all.sh` | Local stack: databases, migrations, tests, API and web |
 

@@ -28,7 +28,7 @@ With Docker and Docker Compose v2 installed, one script runs everything:
 scripts/run-all.sh
 ```
 
-This starts a disposable test database, runs `go vet` and `go test` against it, runs the web lint and production build, and then starts the database, migrations, API and web app if the checks pass. The script prints the reviewer token for the run.
+This starts a disposable test database, runs `go vet` and `go test` against it, runs the web lint and production build, and then starts the database, migrations, API and web app if the checks pass. The script prints the administrator token for the run.
 
 | Command | What it does |
 | --- | --- |
@@ -77,12 +77,12 @@ DATABASE_URL=postgres://postgres:password@localhost:5432/licensed_goods?sslmode=
 
 UPLOAD_DIR=./uploads
 
-# Required. Reviewers enter this token in the web app to access the review
+# Required. Administrators enter this token in the web app to use the seller, review and settings pages.
 # queue, review decisions and the Today setting.
-REVIEWER_TOKEN=change-me
+ADMIN_TOKEN=change-me
 ```
 
-Set `REVIEWER_TOKEN` to a long random value. The server refuses to start without it.
+Set `ADMIN_TOKEN` to a long random value. The server refuses to start without it.
 
 To run the PostgreSQL integration tests, point `TEST_DATABASE_URL` at a dedicated test database. Without it those tests are skipped:
 
@@ -142,17 +142,22 @@ Open the local URL printed by Vite, usually:
 http://localhost:5173
 ```
 
+## Documentation
+
+- [Product holds: when a product may be sold](docs/PRODUCT_HOLDS.md)
+- [System overview: architecture, rules and design decisions](docs/OVERVIEW.md)
+
 ## Application Workspaces
 
 The application provides four workspaces:
 
-- **Dashboard:** Overview of products and licensing status. The pending-review count appears only after a reviewer token is entered.
-- **Seller:** Browse seller products, inspect hold reasons, and submit licence applications with a supporting file.
-- **Reviewer:** Review pending applications, inspect affected products, and approve or reject applications. Requires the reviewer token.
-- **Buyer:** Browse the catalogue containing only active products that are not on hold.
-- **Settings:** Change the application-wide current date to test licence validity and expiration behavior. Requires the reviewer token.
+- **Dashboard:** Overview of products and licensing status. The pending-review count appears only after the administrator token is entered.
+- **Seller:** Browse seller products, inspect hold reasons, add products, and submit licence applications with a supporting file. Requires the administrator token.
+- **Reviewer:** Review pending applications, inspect affected products, and approve or reject applications. Requires the administrator token.
+- **Buyer:** Browse the catalogue containing only active products that are not on hold. Public.
+- **Settings:** Change the application-wide current date to test licence validity and expiration behavior. Requires the administrator token.
 
-The app has no user accounts. Reviewer pages ask for the reviewer token and keep it in `sessionStorage` for the current browser tab only.
+The app has no user accounts. Every administrator action asks for the administrator token, which is kept in `sessionStorage` for the current browser tab only. Public reads (products, catalogue, categories, the Today date) need no token.
 
 ## Licensing Rules
 
@@ -199,14 +204,16 @@ The application-wide date setting makes it possible to test expiry and validity 
 | GET | `/health` | Public | Database and API health |
 | GET | `/api/products` | Public | List products with licensing information |
 | GET | `/api/sellers/{sellerID}/products` | Public | List products belonging to a seller |
-| POST | `/api/licences` | Public | Submit a licence application (multipart form with a file) |
-| GET | `/api/reviews` | Reviewer token | List pending licence applications |
-| PATCH | `/api/reviews/{id}` | Reviewer token | Approve or reject an application |
 | GET | `/api/catalogue` | Public | List products visible to buyers |
+| GET | `/api/categories` | Public | List product categories |
+| POST | `/api/products` | Administrator token | Add a product |
+| POST | `/api/licences` | Administrator token | Submit a licence application (multipart form with a file) |
+| GET | `/api/reviews` | Administrator token | List pending licence applications |
+| PATCH | `/api/reviews/{id}` | Administrator token | Approve or reject an application |
 | GET | `/api/settings/today` | Public | Get the application-wide date |
-| PUT | `/api/settings/today` | Reviewer token | Update the application-wide date |
+| PUT | `/api/settings/today` | Administrator token | Update the application-wide date |
 
-Reviewer-token routes need `Authorization: Bearer <REVIEWER_TOKEN>`. Without a valid token they return `401`.
+Administrator-token routes need `Authorization: Bearer <ADMIN_TOKEN>`. Without a valid token they return `401`. If `ADMIN_TOKEN` is not set on the server, they return `403`.
 
 Licence submissions must use `multipart/form-data`. JSON is refused with `415`. Each submission must include one file: PDF, PNG, JPG, or JPEG, up to 10 MB, with contents that match the extension.
 
@@ -224,11 +231,11 @@ Run backend tests locally. The PostgreSQL integration tests are skipped unless `
 go test ./cmd/... ./internal/...
 ```
 
-Run the PostgreSQL integration tests against a test database (not the development one):
+Run the PostgreSQL integration tests against a test database (not the development one). Use `-p 1`, because the packages share the test database:
 
 ```bash
 TEST_DATABASE_URL=postgres://postgres:password@localhost:5432/licensed_goods_test?sslmode=disable \
-  go test ./internal/review/ -run Integration -v
+  go test -p 1 ./...
 ```
 
 Run backend static analysis:
@@ -260,13 +267,13 @@ licensed-goods/
 │   ├── catalogue/      product listing and hold calculation
 │   ├── config/         environment configuration
 │   ├── database/       connection, seed loading
-│   ├── httpapi/        HTTP handlers, reviewer-token middleware
+│   ├── httpapi/        HTTP handlers, administrator-token middleware
 │   ├── licensing/      matching engine, licence submission
 │   ├── review/         review queue and decisions
 │   └── settings/       application-wide date
 ├── migrations/         SQL schema
 ├── data/               seed dataset
-├── docs/               overview and task description
+├── docs/               overview, product holds and task description
 ├── scripts/            run-all.sh (full stack in Docker)
 ├── web/                React and Vite frontend
 ├── uploads/            licence documents (created at runtime)
