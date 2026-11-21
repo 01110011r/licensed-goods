@@ -7,9 +7,9 @@ The Licensed Goods Marketplace manages products that require specific licences b
 The system supports four main workflows:
 
 - **Seller:** manages products and submits licence applications.
-- **Reviewer:** reviews pending licence applications and approves or rejects them.
+- **Reviewer:** reviews pending licence applications and approves or rejects them. Reviewer access requires the reviewer token (see Access control below).
 - **Buyer:** browses products that are eligible for sale.
-- **Administrator:** controls the global business date (`Today`) used for licence validity calculations.
+- **Administrator:** controls the global business date (`Today`) used for licence validity calculations. In the current system this is a reviewer action and also requires the reviewer token.
 
 The central business rule is:
 
@@ -297,16 +297,18 @@ The application is initially created with `pending` status.
 
 ```mermaid
 flowchart TD
-    Seller[Seller Submits Application] --> Validate[Validate Required Fields and Dates]
+    Seller[Seller Submits Application] --> Validate[Validate Required Fields, Dates and File]
     Validate --> References[Verify Seller and Licence Group]
     References --> Pending{Pending Application Already Exists?}
 
     Pending -->|Yes| Reject[Reject Submission]
-    Pending -->|No| File[Save Optional Licence Document]
+    Pending -->|No| File[Save Required Licence Document]
 
     File --> Insert[Insert Pending Licence]
     Insert --> Queue[Reviewer Queue]
 ```
+
+Applications are submitted as `multipart/form-data`. JSON requests are refused with `415 Unsupported Media Type`, because every licence must include a document.
 
 The submission process validates:
 
@@ -315,7 +317,19 @@ The submission process validates:
 - Required start date.
 - Optional end date.
 - End date must not precede start date.
+- Required licence document (see below).
 - Only one pending application per seller and licence group.
+
+### Licence document
+
+Each application must include one file:
+
+- Accepted extensions: `.pdf`, `.png`, `.jpg`, `.jpeg`.
+- The file's contents must match its extension. The server checks the first bytes of the upload, so renaming a text file to `.pdf` is rejected.
+- Maximum size: 10 MB.
+- Files are saved under a random name in the upload directory. The client's file name is not used on disk.
+- The stored path is set by the server only. A client cannot choose it.
+- If the application is rejected after the file is saved, the file is deleted.
 
 A partial unique index in PostgreSQL enforces the last condition:
 
@@ -328,6 +342,8 @@ WHERE status = 'pending';
 This ensures the rule is enforced even if multiple requests arrive concurrently.
 
 ### Review queue
+
+Viewing the reviewer queue requires the reviewer token (see Access control below).
 
 The reviewer queue:
 
@@ -400,8 +416,10 @@ app_settings
 
 ```mermaid
 flowchart TD
-    Admin[Administrator Changes Today] --> Request[PUT /api/settings/today]
-    Request --> Validate[Validate YYYY-MM-DD]
+    Admin[Administrator Changes Today] --> Request[PUT /api/settings/today with reviewer token]
+    Request --> Auth{Token valid?}
+    Auth -->|No| Refuse[401 Unauthorized]
+    Auth -->|Yes| Validate[Validate YYYY-MM-DD]
     Validate --> Save[Update app_settings]
     Save --> NextRequest[Next Product or Catalogue Request]
     NextRequest --> Load[Load New Today]
@@ -420,19 +438,30 @@ This also makes it possible to test expiration scenarios without waiting for the
 
 ## 7. API Overview
 
-| Method | Endpoint | Purpose |
-| --- | --- | --- |
-| GET | `/health` | Health check |
-| GET | `/api/products` | List products with licence requirements and hold information |
-| GET | `/api/sellers/{sellerID}/products` | List products belonging to a seller |
-| GET | `/api/catalogue` | List buyer-visible products |
-| POST | `/api/licences` | Submit a licence application |
-| GET | `/api/reviews` | Get pending licence applications |
-| PATCH | `/api/reviews/{id}` | Approve or reject an application |
-| GET | `/api/settings/today` | Get the current business date |
-| PUT | `/api/settings/today` | Update the business date |
+| Method | Endpoint | Access | Purpose |
+| --- | --- | --- | --- |
+| GET | `/health` | Public | Health check |
+| GET | `/api/products` | Public | List products with licence requirements and hold information |
+| GET | `/api/sellers/{sellerID}/products` | Public | List products belonging to a seller |
+| GET | `/api/catalogue` | Public | List buyer-visible products |
+| POST | `/api/licences` | Public | Submit a licence application (multipart, with file) |
+| GET | `/api/reviews` | Reviewer token | Get pending licence applications |
+| PATCH | `/api/reviews/{id}` | Reviewer token | Approve or reject an application |
+| GET | `/api/settings/today` | Public | Get the current business date |
+| PUT | `/api/settings/today` | Reviewer token | Update the business date |
+
+Reviewer-token routes take `Authorization: Bearer <REVIEWER_TOKEN>`. Without a valid token they return `401 Unauthorized`. If the server has no `REVIEWER_TOKEN` configured, these routes return `403 Forbidden` for every request.
 
 The backend validates incoming data independently of frontend validation. This means API requests made directly through `curl` are subject to the same business rules.
+
+### Access control
+
+The system has no user accounts. Access is controlled in two ways:
+
+- **Public:** sellers and buyers use the application without signing in. Anyone who can reach the API can submit a licence application or read the catalogue.
+- **Reviewer token:** a single shared secret, `REVIEWER_TOKEN`, protects the review queue, review decisions and the Today setting. The server refuses to start without it. The web app asks for the token when a reviewer or settings page is opened, keeps it in `sessionStorage` for that browser tab only, and clears it if the server rejects it.
+
+This is a deliberate simplification for the assessment scope. It does not identify individual reviewers, so the database records each decision and its outcome but not who made it. Per-user accounts would replace the shared token.
 
 ---
 
@@ -496,19 +525,40 @@ Tests cover:
 
 - Valid submissions.
 - Required fields.
+- Required licence document.
 - Whitespace normalization.
 - Invalid dates.
 - End date before start date.
 - Same-day validity.
 
-### Review decisions
+### HTTP layer
 
 Tests cover:
+
+- Reviewer token checks: missing, wrong, malformed and correct tokens, and fail-closed behaviour when no token is configured.
+- Every reviewer route refuses requests without a token.
+- Licence upload rules: JSON is refused, a missing file is refused, a file whose content does not match its extension is refused, and an unsupported extension is refused.
+
+These tests do not need a database.
+
+### Review decisions
+
+Unit tests cover:
 
 - Valid approval and rejection decisions.
 - Rejection reason requirements.
 - Invalid decision values.
 - Approval validation.
+
+Integration tests run against PostgreSQL and cover:
+
+- Approving a valid licence and a licence without an end date.
+- Rejecting with a trimmed reason.
+- Refusing to approve an expired licence, which stays pending.
+- Refusing a second decision on the same licence.
+- Unknown licence IDs.
+
+These run only when `TEST_DATABASE_URL` is set. Otherwise they are skipped.
 
 ### Today setting
 
@@ -523,10 +573,29 @@ Tests cover:
 
 ### Useful commands
 
-Run backend tests:
+Run everything in Docker (database, migrations, Go tests, web lint and build, then the app):
+
+```bash
+scripts/run-all.sh
+```
+
+Run only the checks, without starting the app:
+
+```bash
+scripts/run-all.sh test
+```
+
+Run backend tests locally, without the integration tests:
 
 ```bash
 go test ./cmd/... ./internal/...
+```
+
+Run only the PostgreSQL integration tests locally. Use a test database, not the development one:
+
+```bash
+TEST_DATABASE_URL=postgres://postgres:password@localhost:5432/licensed_goods_test?sslmode=disable \
+  go test ./internal/review/ -run Integration -v
 ```
 
 Run backend static analysis:

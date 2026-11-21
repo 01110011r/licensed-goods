@@ -20,6 +20,26 @@ Install the following before running the project:
 - Bun
 - Git
 
+## Quick start with Docker
+
+With Docker and Docker Compose v2 installed, one script runs everything:
+
+```bash
+scripts/run-all.sh
+```
+
+This starts a disposable test database, runs `go vet` and `go test` against it, runs the web lint and production build, and then starts the database, migrations, API and web app if the checks pass. The script prints the reviewer token for the run.
+
+| Command | What it does |
+| --- | --- |
+| `scripts/run-all.sh` | Tests, then start the app |
+| `scripts/run-all.sh test` | Only the tests |
+| `scripts/run-all.sh up` | Only the app |
+| `scripts/run-all.sh down` | Stop everything (keeps dev data) |
+| `scripts/run-all.sh reset` | Stop everything and delete all volumes |
+
+Default ports: web `5173`, API `8080`, dev database `5433`, test database `5434`. Override them with `WEB_PORT`, `API_PORT`, `DB_PORT` and `TEST_DB_PORT`. The dev database uses a separate port so it does not clash with a local PostgreSQL on `5432`.
+
 ## Getting Started
 
 ### 1. Clone the repository
@@ -56,6 +76,18 @@ APP_ENV=development
 DATABASE_URL=postgres://postgres:password@localhost:5432/licensed_goods?sslmode=disable
 
 UPLOAD_DIR=./uploads
+
+# Required. Reviewers enter this token in the web app to access the review
+# queue, review decisions and the Today setting.
+REVIEWER_TOKEN=change-me
+```
+
+Set `REVIEWER_TOKEN` to a long random value. The server refuses to start without it.
+
+To run the PostgreSQL integration tests, point `TEST_DATABASE_URL` at a dedicated test database. Without it those tests are skipped:
+
+```bash
+TEST_DATABASE_URL=postgres://postgres:password@localhost:5432/licensed_goods_test?sslmode=disable go test ./...
 ```
 
 Load the variables into your shell before starting the backend:
