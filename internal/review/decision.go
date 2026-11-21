@@ -19,6 +19,24 @@ var (
 	ErrUnknownReference = errors.New("seller or licence group does not exist")
 )
 
+func validateDecision(decision, reason string) (string, error) {
+	if decision != "approved" && decision != "rejected" {
+		return "", ErrInvalidDecision
+	}
+
+	reason = strings.TrimSpace(reason)
+
+	if decision == "rejected" && reason == "" {
+		return "", ErrReasonRequired
+	}
+
+	if decision == "approved" {
+		reason = ""
+	}
+
+	return reason, nil
+}
+
 func Decide(
 	ctx context.Context,
 	db *sql.DB,
@@ -26,13 +44,9 @@ func Decide(
 	decision string,
 	reason string,
 ) error {
-	if decision != "approved" && decision != "rejected" {
-		return ErrInvalidDecision
-	}
-
-	reason = strings.TrimSpace(reason)
-	if decision == "rejected" && reason == "" {
-		return ErrReasonRequired
+	reason, err := validateDecision(decision, reason)
+	if err != nil {
+		return err
 	}
 
 	tx, err := db.BeginTx(ctx, nil)

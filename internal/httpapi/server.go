@@ -12,11 +12,12 @@ import (
 )
 
 type Server struct {
-	db *sql.DB
+	db        *sql.DB
+	uploadDir string
 }
 
-func New(db *sql.DB) *Server {
-	return &Server{db: db}
+func New(db *sql.DB, uploadDir string) *Server {
+	return &Server{db: db, uploadDir: uploadDir}
 }
 
 func (s *Server) Handler() http.Handler {
@@ -30,6 +31,9 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/reviews", s.reviews)
 	mux.HandleFunc("PATCH /api/reviews/{id}", s.decideReview)
 	mux.HandleFunc("POST /api/licences", s.submitLicence)
+	mux.HandleFunc("GET /api/settings/today", s.getToday)
+	mux.HandleFunc("PUT /api/settings/today", s.updateToday)
+	mux.HandleFunc("GET /api/sellers/{sellerID}/products", s.listSellerProducts)
 	return mux
 }
 

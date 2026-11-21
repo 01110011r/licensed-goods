@@ -189,6 +189,33 @@ func loadValidLicences(
 	return valid, nil
 }
 
+func applyLicenceRequirements(
+	view *ProductView,
+	groupIDs []string,
+	groupNames map[string]string,
+	validLicences map[string]bool,
+) {
+	view.RequiredGroups = make([]RequiredGroup, 0, len(groupIDs))
+	view.HoldReasons = make([]string, 0)
+	view.OnHold = false
+
+	for _, groupID := range groupIDs {
+		view.RequiredGroups = append(view.RequiredGroups, RequiredGroup{
+			ID:   groupID,
+			Name: groupNames[groupID],
+		})
+
+		key := view.SellerID + "\x00" + groupID
+		if !validLicences[key] {
+			view.OnHold = true
+			view.HoldReasons = append(
+				view.HoldReasons,
+				"Missing valid approved licence for group "+groupID,
+			)
+		}
+	}
+}
+
 func ListProducts(ctx context.Context, db *sql.DB) ([]ProductView, error) {
 	categories, groups, err := loadMatchingData(ctx, db)
 	if err != nil {
@@ -256,24 +283,12 @@ func ListProducts(ctx context.Context, db *sql.DB) ([]ProductView, error) {
 		result := licensing.Match(p, categories, groups)
 		view.DataIssues = result.Issues
 
-		view.RequiredGroups = make([]RequiredGroup, 0, len(result.GroupIDs))
-		view.HoldReasons = make([]string, 0)
-
-		for _, groupID := range result.GroupIDs {
-			view.RequiredGroups = append(view.RequiredGroups, RequiredGroup{
-				ID:   groupID,
-				Name: groupNames[groupID],
-			})
-
-			key := view.SellerID + "\x00" + groupID
-			if !validLicences[key] {
-				view.OnHold = true
-				view.HoldReasons = append(
-					view.HoldReasons,
-					"Missing valid approved licence for group "+groupID,
-				)
-			}
-		}
+		applyLicenceRequirements(
+			&view,
+			result.GroupIDs,
+			groupNames,
+			validLicences,
+		)
 
 		products = append(products, view)
 	}
@@ -285,12 +300,7 @@ func ListProducts(ctx context.Context, db *sql.DB) ([]ProductView, error) {
 	return products, nil
 }
 
-func ListBuyerCatalogue(ctx context.Context, db *sql.DB) ([]ProductView, error) {
-	products, err := ListProducts(ctx, db)
-	if err != nil {
-		return nil, err
-	}
-
+func filterBuyerCatalogue(products []ProductView) []ProductView {
 	visible := make([]ProductView, 0)
 
 	for _, product := range products {
@@ -299,5 +309,14 @@ func ListBuyerCatalogue(ctx context.Context, db *sql.DB) ([]ProductView, error) 
 		}
 	}
 
-	return visible, nil
+	return visible
+}
+
+func ListBuyerCatalogue(ctx context.Context, db *sql.DB) ([]ProductView, error) {
+	products, err := ListProducts(ctx, db)
+	if err != nil {
+		return nil, err
+	}
+
+	return filterBuyerCatalogue(products), nil
 }

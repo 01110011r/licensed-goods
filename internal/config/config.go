@@ -4,6 +4,7 @@ import "os"
 
 type Config struct {
 	Port        string
+	Environment string
 	DatabaseURL string
 	UploadDir   string
 }

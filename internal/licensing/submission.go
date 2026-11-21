@@ -30,11 +30,9 @@ type LicenceSubmission struct {
 	FilePath  string
 }
 
-func SubmitLicence(
-	ctx context.Context,
-	db *sql.DB,
+func validateLicenceSubmission(
 	input LicenceSubmission,
-) (string, error) {
+) (LicenceSubmission, time.Time, any, error) {
 	input.SellerID = strings.TrimSpace(input.SellerID)
 	input.GroupID = strings.TrimSpace(input.GroupID)
 	input.Number = strings.TrimSpace(input.Number)
@@ -45,21 +43,35 @@ func SubmitLicence(
 		input.Number == "" ||
 		input.Issuer == "" ||
 		input.ValidFrom == "" {
-		return "", ErrInvalidSubmission
+		return input, time.Time{}, nil, ErrInvalidSubmission
 	}
 
 	validFrom, err := time.Parse("2006-01-02", input.ValidFrom)
 	if err != nil {
-		return "", ErrInvalidSubmission
+		return input, time.Time{}, nil, ErrInvalidSubmission
 	}
 
 	var validTo any
 	if input.ValidTo != "" {
 		parsed, err := time.Parse("2006-01-02", input.ValidTo)
 		if err != nil || parsed.Before(validFrom) {
-			return "", ErrInvalidSubmission
+			return input, time.Time{}, nil, ErrInvalidSubmission
 		}
 		validTo = parsed
+	}
+
+	return input, validFrom, validTo, nil
+}
+
+func SubmitLicence(
+	ctx context.Context,
+	db *sql.DB,
+	input LicenceSubmission,
+) (string, error) {
+
+	input, validFrom, validTo, err := validateLicenceSubmission(input)
+	if err != nil {
+		return "", err
 	}
 
 	var exists bool
