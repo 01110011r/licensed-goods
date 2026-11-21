@@ -6,7 +6,7 @@ func TestLoadDefaults(t *testing.T) {
 	t.Setenv("APP_PORT", "")
 	t.Setenv("UPLOAD_DIR", "")
 	t.Setenv("DATABASE_URL", "")
-	t.Setenv("REVIEWER_TOKEN", "")
+	t.Setenv("ADMIN_TOKEN", "")
 
 	cfg := Load()
 
@@ -19,8 +19,8 @@ func TestLoadDefaults(t *testing.T) {
 	if cfg.DatabaseURL != "" {
 		t.Errorf("DatabaseURL = %q, want empty", cfg.DatabaseURL)
 	}
-	if cfg.ReviewerToken != "" {
-		t.Errorf("ReviewerToken = %q, want empty", cfg.ReviewerToken)
+	if cfg.AdminToken != "" {
+		t.Errorf("AdminToken = %q, want empty", cfg.AdminToken)
 	}
 }
 
@@ -28,7 +28,7 @@ func TestLoadFromEnvironment(t *testing.T) {
 	t.Setenv("APP_PORT", "9090")
 	t.Setenv("UPLOAD_DIR", "/data/uploads")
 	t.Setenv("DATABASE_URL", "postgres://example")
-	t.Setenv("REVIEWER_TOKEN", "token-123")
+	t.Setenv("ADMIN_TOKEN", "token-123")
 
 	cfg := Load()
 
@@ -41,7 +41,7 @@ func TestLoadFromEnvironment(t *testing.T) {
 	if cfg.DatabaseURL != "postgres://example" {
 		t.Errorf("DatabaseURL = %q", cfg.DatabaseURL)
 	}
-	if cfg.ReviewerToken != "token-123" {
-		t.Errorf("ReviewerToken = %q", cfg.ReviewerToken)
+	if cfg.AdminToken != "token-123" {
+		t.Errorf("AdminToken = %q", cfg.AdminToken)
 	}
 }

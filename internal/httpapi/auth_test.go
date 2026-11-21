@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestRequireReviewer(t *testing.T) {
+func TestRequireAdmin(t *testing.T) {
 	ok := func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 	}
@@ -28,7 +28,7 @@ func TestRequireReviewer(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			s := New(nil, "", tt.token)
-			h := s.requireReviewer(ok)
+			h := s.requireAdmin(ok)
 
 			req := httptest.NewRequest(http.MethodGet, "/api/reviews", nil)
 			if tt.header != "" {
@@ -47,7 +47,7 @@ func TestRequireReviewer(t *testing.T) {
 
 // Reviewer routes must refuse requests without a token before touching the
 // database, so a nil DB is safe here.
-func TestReviewerRoutesRequireToken(t *testing.T) {
+func TestAdminRoutesRequireToken(t *testing.T) {
 	s := New(nil, "", "secret")
 	handler := s.Handler()
 
@@ -58,6 +58,8 @@ func TestReviewerRoutesRequireToken(t *testing.T) {
 		{http.MethodGet, "/api/reviews"},
 		{http.MethodPatch, "/api/reviews/lic-1"},
 		{http.MethodPut, "/api/settings/today"},
+		{http.MethodPost, "/api/licences"},
+		{http.MethodPost, "/api/products"},
 	}
 
 	for _, route := range routes {

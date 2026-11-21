@@ -6,16 +6,16 @@ type Config struct {
 	Port        string
 	DatabaseURL string
 	UploadDir   string
-	// ReviewerToken authorises reviewer-only endpoints.
-	ReviewerToken string
+	// AdminToken authorises administrator-only endpoints.
+	AdminToken string
 }
 
 func Load() Config {
 	return Config{
-		Port:          getEnv("APP_PORT", "8080"),
-		DatabaseURL:   os.Getenv("DATABASE_URL"),
-		UploadDir:     getEnv("UPLOAD_DIR", "./uploads"),
-		ReviewerToken: os.Getenv("REVIEWER_TOKEN"),
+		Port:        getEnv("APP_PORT", "8080"),
+		DatabaseURL: os.Getenv("DATABASE_URL"),
+		UploadDir:   getEnv("UPLOAD_DIR", "./uploads"),
+		AdminToken:  os.Getenv("ADMIN_TOKEN"),
 	}
 }
 
