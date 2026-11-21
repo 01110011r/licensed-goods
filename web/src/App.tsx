@@ -1,122 +1,235 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
+import { useEffect, useState } from 'react'
+import { api, type Product, type ReviewItem } from './api'
+import SellerView from './SellerView'
+import ReviewerView from './ReviewerView'
+import BuyerView from './BuyerView'
+import SettingsView from './SettingsView'
 import './App.css'
 
+type View = 'overview' | 'seller' | 'reviewer' | 'buyer' | 'settings'
+
+const navigation: { id: View; label: string; icon: string }[] = [
+  { id: 'overview', label: 'Overview', icon: '◫' },
+  { id: 'seller', label: 'Seller workspace', icon: '▤' },
+  { id: 'reviewer', label: 'Licence reviews', icon: '✓' },
+  { id: 'buyer', label: 'Buyer catalogue', icon: '⌕' },
+  { id: 'settings', label: 'Settings', icon: '⚙' },
+]
+
 function App() {
-  const [count, setCount] = useState(0)
+  const [view, setView] = useState<View>('overview')
+  const [products, setProducts] = useState<Product[]>([])
+  const [reviews, setReviews] = useState<ReviewItem[]>([])
+  const [today, setToday] = useState('')
+  const [connected, setConnected] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    async function loadDashboard() {
+      try {
+        const [productData, reviewData, dateData] = await Promise.all([
+          api.products(),
+          api.reviews(),
+          api.getToday(),
+        ])
+
+        setProducts(productData)
+        setReviews(reviewData)
+        setToday(dateData.today)
+        setConnected(true)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'API connection failed')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadDashboard()
+  }, [])
+
+  const heldCount = products.filter((p) => p.on_hold).length
+  const activeCount = products.filter((p) => p.status === 'active').length
+
+  const pageTitle = navigation.find((item) => item.id === view)?.label
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
+    <div className="app-shell">
+      <aside className="sidebar">
+        <div className="brand">
+          <div className="brand-mark">L</div>
+          <div>
+            <strong>Licen<span>tia</span></strong>
+            <small>GOODS MARKETPLACE</small>
+          </div>
         </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
 
-      <div className="ticks"></div>
+        <div className="nav-label">WORKSPACE</div>
+        <nav>
+          {navigation.map((item) => (
+            <button
+              key={item.id}
+              className={`nav-item ${view === item.id ? 'active' : ''}`}
+              onClick={() => setView(item.id)}
+            >
+              <span className="nav-icon">{item.icon}</span>
+              {item.label}
+              {item.id === 'reviewer' && reviews.length > 0 && (
+                <span className="nav-count">{reviews.length}</span>
+              )}
+            </button>
+          ))}
+        </nav>
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
+        <div className="sidebar-bottom">
+          <div className="connection">
+            <span className={`connection-dot ${connected ? 'online' : ''}`} />
+            <span>{connected ? 'API connected' : 'Connecting...'}</span>
+          </div>
+          <small>Licensed Goods · Assessment</small>
         </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+      </aside>
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
+      <main className="main-area">
+        <header className="topbar">
+          <div>
+            <span className="breadcrumb">Marketplace / </span>
+            <strong>{pageTitle}</strong>
+          </div>
+          <div className="topbar-right">
+            <span className="date-label">SYSTEM DATE</span>
+            <strong>{today || '—'}</strong>
+            <div className="avatar">A</div>
+          </div>
+        </header>
+
+        <div className="page-content">
+          {loading ? (
+            <div className="loading">Loading marketplace data...</div>
+          ) : error ? (
+            <div className="error-panel">
+              <strong>Unable to load dashboard</strong>
+              <p>{error}</p>
+              <button onClick={() => window.location.reload()}>Retry</button>
+            </div>
+          ) : view === 'overview' ? (
+            <>
+              <div className="page-heading">
+                <div>
+                  <p className="eyebrow">MARKETPLACE OVERVIEW</p>
+                  <h1>Good day, Administrator</h1>
+                  <p className="subtitle">
+                    Here's what's happening across your marketplace today.
+                  </p>
+                </div>
+                <span className="date-chip">Today · {today}</span>
+              </div>
+
+              <section className="stats-grid">
+                <StatCard label="Total products" value={products.length} detail="Across all sellers" icon="▤" />
+                <StatCard label="Active products" value={activeCount} detail="Currently published" icon="◉" />
+                <StatCard label="Products on hold" value={heldCount} detail="Licence requirements unmet" icon="Ⅱ" />
+                <StatCard label="Pending reviews" value={reviews.length} detail="Awaiting decision" icon="◷" />
+              </section>
+
+              <section className="content-grid">
+                <div className="panel">
+                  <div className="panel-heading">
+                    <div>
+                      <h2>Recent products</h2>
+                      <p>Latest marketplace inventory</p>
+                    </div>
+                    <button className="text-button" onClick={() => setView('seller')}>
+                      View all →
+                    </button>
+                  </div>
+                  <div className="product-list">
+                    {products.slice(0, 5).map((product) => (
+                      <div className="product-row" key={product.id}>
+                        <div className="product-symbol">▧</div>
+                        <div className="product-info">
+                          <strong>{product.name}</strong>
+                          <small>{product.seller_name} · {product.ikpu}</small>
+                        </div>
+                        <Status status={product.on_hold ? 'On hold' : product.status} />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="panel">
+                  <div className="panel-heading">
+                    <div>
+                      <h2>Review queue</h2>
+                      <p>Applications requiring attention</p>
+                    </div>
+                    <button className="text-button" onClick={() => setView('reviewer')}>
+                      Open queue →
+                    </button>
+                  </div>
+                  {reviews.length === 0 ? (
+                    <div className="empty-state">No pending applications.</div>
+                  ) : (
+                    reviews.slice(0, 5).map((review) => (
+                      <div className="review-row" key={review.id}>
+                        <div>
+                          <strong>{review.number || 'Unnumbered licence'}</strong>
+                          <small>{review.seller_name} · {review.group_name}</small>
+                        </div>
+                        <Status status="Pending" />
+                      </div>
+                    ))
+                  )}
+                </div>
+              </section>
+            </>
+          ) : view === 'seller' ? (
+            <SellerView />
+          ) : view === 'reviewer' ? (
+            <ReviewerView />
+          ) : view === 'buyer' ? (
+            <BuyerView />
+          ) : view === 'settings' ? (
+            <SettingsView />
+          ) : (
+            <div className="placeholder-panel">
+              <p className="eyebrow">WORKSPACE</p>
+              <h1>{pageTitle}</h1>
+              <p className="subtitle">This view is coming in the next implementation step.</p>
+            </div>
+          )}
+        </div>
+      </main>
+    </div>
   )
+}
+
+function StatCard({
+  label,
+  value,
+  detail,
+  icon,
+}: {
+  label: string
+  value: number
+  detail: string
+  icon: string
+}) {
+  return (
+    <div className="stat-card">
+      <div className="stat-top">
+        <span>{label}</span>
+        <span className="stat-icon">{icon}</span>
+      </div>
+      <strong className="stat-value">{value}</strong>
+      <small>{detail}</small>
+    </div>
+  )
+}
+
+function Status({ status }: { status: string }) {
+  const normalized = status.toLowerCase().replaceAll(' ', '-')
+  return <span className={`status status-${normalized}`}>{status}</span>
 }
 
 export default App
