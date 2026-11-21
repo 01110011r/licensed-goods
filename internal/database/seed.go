@@ -84,7 +84,7 @@ func Seed(ctx context.Context, db *sql.DB, path string) error {
 	).Scan(&initialized)
 
 	if checkErr != nil {
-		return fmt.Errorf("check database initialization: %w", err)
+		return fmt.Errorf("check database initialization: %w", checkErr)
 	}
 
 	if initialized {
