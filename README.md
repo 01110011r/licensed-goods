@@ -100,6 +100,8 @@ set +a
 
 ### 4. Apply database migrations
 
+Skip this step if you use Docker (`scripts/run-all.sh` applies the migrations itself).
+
 From the project root:
 
 ```bash
@@ -144,11 +146,13 @@ http://localhost:5173
 
 The application provides four workspaces:
 
-- **Dashboard:** Overview of products, licensing status, and pending reviews.
-- **Seller:** Browse seller products, inspect hold reasons, and submit licence applications with supporting files.
-- **Reviewer:** Review pending applications, inspect affected products, and approve or reject applications.
+- **Dashboard:** Overview of products and licensing status. The pending-review count appears only after a reviewer token is entered.
+- **Seller:** Browse seller products, inspect hold reasons, and submit licence applications with a supporting file.
+- **Reviewer:** Review pending applications, inspect affected products, and approve or reject applications. Requires the reviewer token.
 - **Buyer:** Browse the catalogue containing only active products that are not on hold.
-- **Settings:** Change the application-wide current date to test licence validity and expiration behavior.
+- **Settings:** Change the application-wide current date to test licence validity and expiration behavior. Requires the reviewer token.
+
+The app has no user accounts. Reviewer pages ask for the reviewer token and keep it in `sessionStorage` for the current browser tab only.
 
 ## Licensing Rules
 
@@ -190,26 +194,41 @@ The application-wide date setting makes it possible to test expiry and validity 
 
 ## API Endpoints
 
-| Method | Endpoint | Description |
-| --- | --- | --- |
-| GET | `/health` | Database and API health |
-| GET | `/api/products` | List products with licensing information |
-| GET | `/api/sellers/{sellerID}/products` | List products belonging to a seller |
-| POST | `/api/licences` | Submit a licence application |
-| GET | `/api/reviews` | List pending licence applications |
-| PATCH | `/api/reviews/{id}` | Approve or reject an application |
-| GET | `/api/catalogue` | List products visible to buyers |
-| GET | `/api/settings/today` | Get the application-wide date |
-| PUT | `/api/settings/today` | Update the application-wide date |
+| Method | Endpoint | Access | Description |
+| --- | --- | --- | --- |
+| GET | `/health` | Public | Database and API health |
+| GET | `/api/products` | Public | List products with licensing information |
+| GET | `/api/sellers/{sellerID}/products` | Public | List products belonging to a seller |
+| POST | `/api/licences` | Public | Submit a licence application (multipart form with a file) |
+| GET | `/api/reviews` | Reviewer token | List pending licence applications |
+| PATCH | `/api/reviews/{id}` | Reviewer token | Approve or reject an application |
+| GET | `/api/catalogue` | Public | List products visible to buyers |
+| GET | `/api/settings/today` | Public | Get the application-wide date |
+| PUT | `/api/settings/today` | Reviewer token | Update the application-wide date |
 
-Licence submissions support JSON and multipart form data. Supporting files are optional; accepted file extensions are PDF, PNG, JPG, and JPEG, with a 10 MB upload limit.
+Reviewer-token routes need `Authorization: Bearer <REVIEWER_TOKEN>`. Without a valid token they return `401`.
+
+Licence submissions must use `multipart/form-data`. JSON is refused with `415`. Each submission must include one file: PDF, PNG, JPG, or JPEG, up to 10 MB, with contents that match the extension.
 
 ## Testing and Code Quality
 
-Run backend tests:
+Run everything in Docker (database, migrations, Go and web checks, then the app):
+
+```bash
+scripts/run-all.sh
+```
+
+Run backend tests locally. The PostgreSQL integration tests are skipped unless `TEST_DATABASE_URL` is set:
 
 ```bash
 go test ./cmd/... ./internal/...
+```
+
+Run the PostgreSQL integration tests against a test database (not the development one):
+
+```bash
+TEST_DATABASE_URL=postgres://postgres:password@localhost:5432/licensed_goods_test?sslmode=disable \
+  go test ./internal/review/ -run Integration -v
 ```
 
 Run backend static analysis:
@@ -236,23 +255,24 @@ bun run lint
 ```text
 licensed-goods/
 ├── cmd/
-│   └── api/
+│   └── api/            entry point
 ├── internal/
-│   ├── config/
-│   ├── database/
-│   ├── category/
-│   ├── product/
-│   ├── licensing/
-│   ├── review/
-│   ├── catalogue/
-│   ├── settings/
-│   └── httpapi/
-├── migrations/
-├── data/
-├── uploads/
-├── web/
+│   ├── catalogue/      product listing and hold calculation
+│   ├── config/         environment configuration
+│   ├── database/       connection, seed loading
+│   ├── httpapi/        HTTP handlers, reviewer-token middleware
+│   ├── licensing/      matching engine, licence submission
+│   ├── review/         review queue and decisions
+│   └── settings/       application-wide date
+├── migrations/         SQL schema
+├── data/               seed dataset
+├── docs/               overview and task description
+├── scripts/            run-all.sh (full stack in Docker)
+├── web/                React and Vite frontend
+├── uploads/            licence documents (created at runtime)
+├── Dockerfile          API image
+├── docker-compose.yml  databases, migrations, API, web, test runners
 ├── .env.example
-├── .gitignore
 ├── go.mod
 ├── go.sum
 └── README.md

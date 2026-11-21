@@ -90,6 +90,7 @@ flowchart TB
 | React + TypeScript | Component-based frontend with type safety |
 | Modular monolith | Clear domain separation without distributed-system complexity |
 | Local file storage | Simple document storage for the assessment scope |
+| Docker Compose | One command runs the databases, migrations, checks, API and web app |
 
 The backend is not a collection of microservices. All domain modules run inside one application process and share the same database connection.
 
@@ -690,5 +691,8 @@ A clear presentation can follow this sequence:
 | `internal/licensing/submission.go` | Submission validation and pending application creation |
 | `internal/review/decision.go` | Approval/rejection rules and transaction safety |
 | `internal/settings/today.go` | Global business date validation and persistence |
+| `internal/httpapi/auth.go` | Reviewer token check (fails closed when no token is configured) |
+| `internal/httpapi/licences.go` | Multipart upload handling and file content checks |
+| `docker-compose.yml`, `scripts/run-all.sh` | Local stack: databases, migrations, tests, API and web |
 
 **Defense tip:** Focus on explaining the business rules and why the implementation behaves correctly in edge cases. Understanding the reasoning behind the code is more valuable than simply listing the technologies used.
