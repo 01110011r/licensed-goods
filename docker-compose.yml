@@ -6,7 +6,7 @@
 #   test-go / test-web   run only with `--profile test` (scripts/run-all.sh does this)
 #
 # Use scripts/run-all.sh rather than calling compose directly: it sets the
-# reviewer token and runs the tests before starting the app.
+# administrator token and runs the tests before starting the app.
 
 name: licensed-goods
 
@@ -91,7 +91,7 @@ services:
       APP_PORT: "8080"
       DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD:-postgres}@db:5432/licensed_goods?sslmode=disable
       UPLOAD_DIR: /app/uploads
-      REVIEWER_TOKEN: ${REVIEWER_TOKEN:?REVIEWER_TOKEN must be set (scripts/run-all.sh sets it)}
+      ADMIN_TOKEN: ${ADMIN_TOKEN:?ADMIN_TOKEN must be set (scripts/run-all.sh sets it)}
     ports:
       - "${API_PORT:-8080}:8080"
     volumes:
@@ -127,7 +127,9 @@ services:
       - ./:/src
       - go-mod-cache:/go/pkg/mod
       - go-build-cache:/root/.cache/go-build
-    command: ["sh", "-ec", "go vet ./... && go test -count=1 ./..."]
+    # -p 1: packages share one test database, and the review and catalogue
+    # integration tests change the same tables, so they must not run in parallel.
+    command: ["sh", "-ec", "go vet ./... && go test -p 1 -count=1 ./..."]
 
   test-web:
     # Uses the image's own copy of the source (no bind mount), so the build
