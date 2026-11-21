@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 
 	"licensed-goods/internal/catalogue"
@@ -133,5 +132,8 @@ func (s *Server) decideReview(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	fmt.Fprintf(w, `{"id":%q,"status":%q}`, r.PathValue("id"), input.Status)
+	json.NewEncoder(w).Encode(map[string]string{
+		"id":     r.PathValue("id"),
+		"status": input.Status,
+	})
 }
